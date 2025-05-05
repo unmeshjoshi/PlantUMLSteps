@@ -1,0 +1,74 @@
+@startuml
+!theme plain
+
+' Professional color palette
+!define PRIMARY_COLOR #2C3E50
+!define SECONDARY_COLOR #34495E
+!define ACCENT_COLOR #3498DB
+!define SUCCESS_COLOR #27AE60
+!define WARNING_COLOR #F39C12
+!define ERROR_COLOR #E74C3C
+!define NOTE_COLOR #F8F9FA
+!define TEXT_COLOR #2C3E50
+
+' Base styling
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam defaultFontColor TEXT_COLOR
+
+' Sequence diagram specific styling
+skinparam sequence {
+    ArrowColor PRIMARY_COLOR
+    ArrowThickness 2
+    ParticipantBorderColor PRIMARY_COLOR
+    ParticipantBackgroundColor white
+    ParticipantFontName Arial
+    ParticipantFontSize 12
+    ParticipantFontColor TEXT_COLOR
+    LifeLineBorderColor SECONDARY_COLOR
+    LifeLineBackgroundColor white
+    MessageColor PRIMARY_COLOR
+    MessageFontName Arial
+    MessageFontSize 12
+    MessageFontColor TEXT_COLOR
+    DividerBackgroundColor white
+    DividerBorderColor SECONDARY_COLOR
+}
+
+' Note styling
+skinparam note {
+    BackgroundColor NOTE_COLOR
+    BorderColor SECONDARY_COLOR
+    FontName Arial
+    FontSize 12
+    FontColor TEXT_COLOR
+    Shadowing false
+}
+
+' Box styling
+skinparam box {
+    BackgroundColor white
+    BorderColor PRIMARY_COLOR
+    FontName Arial
+    FontSize 12
+    FontColor TEXT_COLOR
+    Shadowing false
+}
+
+' Arrow styling
+skinparam arrow {
+    Color PRIMARY_COLOR
+    FontColor TEXT_COLOR
+    Thickness 2
+}
+
+' Message styling
+skinparam message {
+    FontName Arial
+    FontSize 12
+    FontColor TEXT_COLOR
+}
+hide footbox
+@enduml

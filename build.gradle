@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.example'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+//<codeFragment name="gradle-dependencies">
+dependencies {
+    implementation 'net.sourceforge.plantuml:plantuml:1.2023.10'
+    implementation 'com.google.code.gson:gson:2.10.1'
+//</codeFragment>    
+    implementation 'org.apache.xmlgraphics:batik-all:1.17'
+    implementation 'org.apache.xmlgraphics:batik-transcoder:1.17'
+    implementation 'org.apache.xmlgraphics:batik-svggen:1.17'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.2'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+application {
+    mainClass = 'com.example.Main'
+}
+
+task generateStepDiagrams {
+    group = 'plantuml'
+    description = 'Processes PlantUML files and generates step diagrams'
+    
+    dependsOn compileJava
+    
+    doLast {
+        def inputDir = file('src/diagrams')
+        def outputDir = file('build/generated-diagrams')
+        
+        // Create output directory if it doesn't exist
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
+        }
+        //<codeFragment name="gradle-task">
+        // Process each .puml file in the input directory and its subdirectories
+        fileTree(inputDir).include('**/*.puml').each { pumlFile ->
+            def relativePath = inputDir.toPath().relativize(pumlFile.toPath()).toString()
+            def fileName = pumlFile.name.replace('.puml', '')
+            def stepOutputDir = new File(outputDir, fileName)
+            
+            if (!stepOutputDir.exists()) {
+                stepOutputDir.mkdirs()
+            }
+            
+            // Run the generator for this file
+            javaexec {
+                classpath = sourceSets.main.runtimeClasspath
+                mainClass = 'com.example.StepDiagramGenerator'
+                args = [pumlFile.absolutePath, stepOutputDir.absolutePath]
+            }
+        }//</codeFragment> 
+    }
+} 
+  

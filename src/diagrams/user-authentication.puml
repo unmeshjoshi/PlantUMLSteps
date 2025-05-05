@@ -1,0 +1,21 @@
+@startuml
+
+hide footbox
+
+actor User
+participant System
+participant Database
+
+User -> System: Login Request
+System --> User: Login Form
+
+User -> System: Submit Credentials
+System -> Database: Verify Credentials
+Database --> System: Validation Result
+System --> User: Authentication Result
+
+User -> System: Request Dashboard
+System -> Database: Fetch User Data
+Database --> System: User Data
+System --> User: Dashboard View
+@enduml 
