@@ -169,10 +169,14 @@ class DeclarationDetector {
     private static final Pattern PARTICIPANT_PATTERN = Pattern.compile("(?i)^\\s*participant\\s+.*");
     private static final Pattern ACTOR_PATTERN = Pattern.compile("(?i)^\\s*actor\\s+.*");
     private static final Pattern INCLUDE_PATTERN = Pattern.compile("(?i)^\\s*!include\\s+.*");
+    private static final Pattern QUOTED_PARTICIPANT_PATTERN = Pattern.compile("(?i)^\\s*participant\\s+\".*\"\\s+as\\s+.*");
+    private static final Pattern QUOTED_ACTOR_PATTERN = Pattern.compile("(?i)^\\s*actor\\s+\".*\"\\s+as\\s+.*");
 
     public boolean isDeclaration(String line) {
         return PARTICIPANT_PATTERN.matcher(line).matches() ||
                 ACTOR_PATTERN.matcher(line).matches() ||
-                INCLUDE_PATTERN.matcher(line).matches();
+                INCLUDE_PATTERN.matcher(line).matches() ||
+                QUOTED_PARTICIPANT_PATTERN.matcher(line).matches() ||
+                QUOTED_ACTOR_PATTERN.matcher(line).matches();
     }
 }

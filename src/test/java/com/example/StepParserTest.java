@@ -103,4 +103,86 @@ public class StepParserTest {
         assertTrue(defaultStep.getContent().contains("User -> System: Login Request"));
         assertTrue(defaultStep.getContent().contains("User -> System: Submit Credentials"));
     }
-} 
+
+    @Test
+    public void testGeneratedStepFilesStructure() throws IOException {
+        // Create a test PlantUML file with step markers, participants, and includes
+        String pumlContent = "@startuml\n" +
+                "!include @style.puml\n" +
+                "actor \"User 1\" as U1\n" +
+                "actor \"User 2\" as U2\n" +
+                "participant \"System\" as S\n" +
+                "participant \"Database\" as DB\n\n" +
+                "' @step {\"name\": \"Step 1: Initial Request\", \"newPage\": true}\n" +
+                "U1 -> S: Initial Request\n" +
+                "S --> U1: Request Received\n\n" +
+                "' @step {\"name\": \"Step 2: Process Request\", \"newPage\": true}\n" +
+                "S -> DB: Query Data\n" +
+                "DB --> S: Return Results\n\n" +
+                "' @step {\"name\": \"Step 3: Concurrent Access\", \"newPage\": true}\n" +
+                "U2 -> S: Concurrent Request\n" +
+                "S --> U2: Handle Concurrent Request\n" +
+                "@enduml";
+
+        File tempFile = tempDir.resolve("test_structure.puml").toFile();
+        try (FileWriter writer = new FileWriter(tempFile)) {
+            writer.write(pumlContent);
+        }
+
+        // Parse the file
+        StepParser parser = new StepParser();
+        List<Step> steps = parser.parseFile(tempFile);
+
+        // Verify steps were parsed correctly
+        assertEquals(3, steps.size(), "Should have found 3 steps");
+
+        // Generate PlantUML content for each step
+        for (int i = 0; i < steps.size(); i++) {
+            Step step = steps.get(i);
+            String generatedPuml = step.generatePlantUML();
+            
+            // Split into lines for easier testing
+            String[] lines = generatedPuml.split("\n");
+            
+            // Verify structure
+            assertTrue(lines.length > 2, "Step " + (i+1) + " should have more than 2 lines");
+            
+            // Count @startuml occurrences
+            int startumlCount = 0;
+            for (String line : lines) {
+                if (line.trim().equals("@startuml")) {
+                    startumlCount++;
+                }
+            }
+            assertEquals(0, startumlCount, "Step " + (i+1) + " should not contain @startuml (it's added by the generator)");
+            
+            // Verify all participants are included
+            assertTrue(generatedPuml.contains("actor \"User 1\" as U1"), "Step " + (i+1) + " should include User 1");
+            assertTrue(generatedPuml.contains("actor \"User 2\" as U2"), "Step " + (i+1) + " should include User 2");
+            assertTrue(generatedPuml.contains("participant \"System\" as S"), "Step " + (i+1) + " should include System");
+            assertTrue(generatedPuml.contains("participant \"Database\" as DB"), "Step " + (i+1) + " should include Database");
+            
+            // Verify include directive is present
+            assertTrue(generatedPuml.contains("!include @style.puml"), "Step " + (i+1) + " should include style.puml");
+            
+            // Verify step-specific content
+            switch (i) {
+                case 0:
+                    assertTrue(generatedPuml.contains("U1 -> S: Initial Request"), "Step 1 should contain its specific content");
+                    assertFalse(generatedPuml.contains("S -> DB: Query Data"), "Step 1 should not contain Step 2 content");
+                    assertFalse(generatedPuml.contains("U2 -> S: Concurrent Request"), "Step 1 should not contain Step 3 content");
+                    break;
+                case 1:
+                    assertFalse(generatedPuml.contains("U1 -> S: Initial Request"), "Step 2 should not contain Step 1 content (newPage=true)");
+                    assertTrue(generatedPuml.contains("S -> DB: Query Data"), "Step 2 should contain its specific content");
+                    assertFalse(generatedPuml.contains("U2 -> S: Concurrent Request"), "Step 2 should not contain Step 3 content");
+                    break;
+                case 2:
+                    assertFalse(generatedPuml.contains("U1 -> S: Initial Request"), "Step 3 should not contain Step 1 content (newPage=true)");
+                    assertFalse(generatedPuml.contains("S -> DB: Query Data"), "Step 3 should not contain Step 2 content (newPage=true)");
+                    assertTrue(generatedPuml.contains("U2 -> S: Concurrent Request"), "Step 3 should contain its specific content");
+                    break;
+            }
+        }
+    }
+}

@@ -60,7 +60,10 @@ public class Step {
      * Adds a content line to this step.
      */
     public void addContent(String line) {
-        content.add(line);
+        // Skip @startuml and @enduml tags as they're added by the generator
+        if (!isStartOrEndTag(line)) {
+            content.add(line);
+        }
     }
 
     /**
@@ -74,14 +77,29 @@ public class Step {
      * Adds a declaration to this step.
      */
     public void addDeclaration(String declaration) {
-        declarations.add(declaration);
+        // Skip @startuml and @enduml tags as they're added by the generator
+        if (!isStartOrEndTag(declaration)) {
+            declarations.add(declaration);
+        }
     }
 
     /**
      * Adds all the given declarations to this step.
      */
     public void addAllDeclarations(List<String> declarations) {
-        this.declarations.addAll(declarations);
+        for (String declaration : declarations) {
+            if (!isStartOrEndTag(declaration)) {
+                this.declarations.add(declaration);
+            }
+        }
+    }
+
+    /**
+     * Checks if a line is a @startuml or @enduml tag.
+     */
+    private boolean isStartOrEndTag(String line) {
+        String trimmed = line.trim();
+        return trimmed.startsWith("@startuml") || trimmed.equals("@enduml");
     }
 
     /**
@@ -111,5 +129,12 @@ public class Step {
                 ", content size=" + content.size() +
                 ", declarations size=" + declarations.size() +
                 '}';
+    }
+
+    void addPreambleLines(List<String> preambleLines) {
+        // Add preamble lines (like imports) to each step
+        for (String preambleLine : preambleLines) {
+            addContent(preambleLine);
+        }
     }
 }

@@ -1,5 +1,4 @@
 @startuml
-
 ' @step {"name":"Two concurrent transactions begin", "newPage":true}
 actor "User 1" as U1
 actor "User 2" as U2

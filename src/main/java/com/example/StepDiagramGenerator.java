@@ -96,13 +96,13 @@ public class StepDiagramGenerator {
             }
             
             // Generate SVG file
-            File svgFile = new File(targetDir, stepFileName + ".png");
+            File svgFile = new File(targetDir, stepFileName + ".svg");
             generateSvg(pumlFile, svgFile);
             
             // Add step metadata for the viewer
             Map<String, String> metadata = new HashMap<>();
             metadata.put("name", step.getName());
-            metadata.put("svgPath", stepFileName + ".png");
+            metadata.put("svgPath", stepFileName + ".svg");
             stepMetadata.add(metadata);
             
             System.out.println("Generated step diagram: " + pumlFile.getAbsolutePath());
@@ -155,7 +155,7 @@ public class StepDiagramGenerator {
         String source = Files.readString(pumlFile.toPath());
         SourceStringReader reader = new SourceStringReader(source);
         try (FileOutputStream output = new FileOutputStream(svgFile)) {
-            reader.outputImage(output, new FileFormatOption(FileFormat.PNG));
+            reader.outputImage(output, new FileFormatOption(FileFormat.SVG));
         }
     }
     

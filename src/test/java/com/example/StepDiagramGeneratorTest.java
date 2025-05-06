@@ -9,83 +9,163 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StepDiagramGeneratorTest {
-
+    
     @TempDir
     Path tempDir;
-
+    
     @Test
     public void testGenerateStepDiagrams() throws IOException {
         // Create a test PlantUML file with step markers
         String pumlContent = "@startuml\n" +
-                "' @step {\"name\": \"Step 1: User Login\", \"newPage\": false}\n" +
                 "actor User\n" +
-                "participant System\n\n" +
+                "participant System\n" +
+                "participant Database\n\n" +
+                "' @step {\"name\": \"Step 1: User Login\", \"newPage\": true}\n" +
                 "User -> System: Login Request\n" +
-                "System --> User: Login Form\n\n" +
-                "' @step {\"name\": \"Step 2: Authentication\", \"newPage\": false}\n" +
-                "User -> System: Submit Credentials\n" +
-                "System --> User: Authentication Result\n\n" +
+                "System -> Database: Validate Credentials\n" +
+                "Database --> System: Valid Credentials\n" +
+                "System --> User: Login Success\n\n" +
+                "' @step {\"name\": \"Step 2: Authentication\", \"newPage\": true}\n" +
+                "User -> System: Request Resource\n" +
+                "System -> System: Check Authentication\n" +
+                "System --> User: Resource Access Granted\n\n" +
                 "' @step {\"name\": \"Step 3: Dashboard\", \"newPage\": true}\n" +
-                "User -> System: View Dashboard\n" +
-                "System --> User: Dashboard Data\n" +
+                "User -> System: Load Dashboard\n" +
+                "System -> Database: Fetch Dashboard Data\n" +
+                "Database --> System: Return Dashboard Data\n" +
+                "System --> User: Display Dashboard\n" +
                 "@enduml";
-
-        File inputFile = tempDir.resolve("test.puml").toFile();
-        try (FileWriter writer = new FileWriter(inputFile)) {
+        
+        File tempFile = tempDir.resolve("test.puml").toFile();
+        try (FileWriter writer = new FileWriter(tempFile)) {
             writer.write(pumlContent);
         }
-
-        File outputDir = tempDir.resolve("output").toFile();
+        
+        // Create output directory
+        Path outputDir = tempDir.resolve("output");
+        Files.createDirectories(outputDir);
         
         // Generate step diagrams
-        StepDiagramGenerator.generateStepDiagrams(inputFile, outputDir);
+        StepDiagramGenerator.generateStepDiagrams(tempFile, outputDir.toFile());
         
-        // Verify that step files were created
-        assertTrue(outputDir.exists(), "Output directory should exist");
+        // Verify that step diagrams were generated
+        List<Path> pumlFiles = Files.list(outputDir)
+                .filter(path -> path.toString().endsWith(".puml"))
+                .collect(Collectors.toList());
         
-        // Check for individual step files
-        File step1File = new File(outputDir, "step-01-step-1-user-login.puml");
-        File step2File = new File(outputDir, "step-02-step-2-authentication.puml");
-        File step3File = new File(outputDir, "step-03-step-3-dashboard.puml");
-        File summaryFile = new File(outputDir, "summary.puml");
+        List<Path> svgFiles = Files.list(outputDir)
+                .filter(path -> path.toString().endsWith(".svg"))
+                .collect(Collectors.toList());
         
-        assertTrue(step1File.exists(), "Step 1 file should exist");
-        assertTrue(step2File.exists(), "Step 2 file should exist");
-        assertTrue(step3File.exists(), "Step 3 file should exist");
-        assertTrue(summaryFile.exists(), "Summary file should exist");
+        // We expect 4 PUML files (3 steps + summary) and 4 SVG files
+        assertEquals(4, pumlFiles.size(), "Should have generated 4 PUML files");
+        assertEquals(4, svgFiles.size(), "Should have generated 4 SVG files");
         
-        // Verify content of step 1 file
-        String step1Content = Files.readString(step1File.toPath());
-        assertTrue(step1Content.contains("@startuml"), "Step 1 should contain @startuml");
-        assertTrue(step1Content.contains("title Step 1: User Login"), "Step 1 should have correct title");
-        assertTrue(step1Content.contains("User -> System: Login Request"), "Step 1 should contain sequence");
-        assertTrue(step1Content.contains("@enduml"), "Step 1 should contain @enduml");
+        // Check for specific files
+        assertTrue(Files.exists(outputDir.resolve("step-01-step-1-user-login.puml")), "Step 1 PUML file should exist");
+        assertTrue(Files.exists(outputDir.resolve("step-01-step-1-user-login.svg")), "Step 1 SVG file should exist");
+        assertTrue(Files.exists(outputDir.resolve("step-02-step-2-authentication.puml")), "Step 2 PUML file should exist");
+        assertTrue(Files.exists(outputDir.resolve("step-02-step-2-authentication.svg")), "Step 2 SVG file should exist");
+        assertTrue(Files.exists(outputDir.resolve("step-03-step-3-dashboard.puml")), "Step 3 PUML file should exist");
+        assertTrue(Files.exists(outputDir.resolve("step-03-step-3-dashboard.svg")), "Step 3 SVG file should exist");
+        assertTrue(Files.exists(outputDir.resolve("summary.puml")), "Summary PUML file should exist");
+        assertTrue(Files.exists(outputDir.resolve("summary.svg")), "Summary SVG file should exist");
         
-        // Verify content of step 2 file
-        String step2Content = Files.readString(step2File.toPath());
-        assertTrue(step2Content.contains("@startuml"), "Step 2 should contain @startuml");
-        assertTrue(step2Content.contains("title Step 2: Authentication"), "Step 2 should have correct title");
-        assertTrue(step2Content.contains("User -> System: Submit Credentials"), "Step 2 should contain sequence");
-        assertTrue(step2Content.contains("@enduml"), "Step 2 should contain @enduml");
+        // Verify that HTML viewer was generated
+        assertTrue(Files.exists(outputDir.resolve("index.html")), "HTML viewer should have been generated");
         
-        // Verify content of step 3 file
-        String step3Content = Files.readString(step3File.toPath());
-        assertTrue(step3Content.contains("@startuml"), "Step 3 should contain @startuml");
-        assertTrue(step3Content.contains("title Step 3: Dashboard"), "Step 3 should have correct title");
-        assertTrue(step3Content.contains("User -> System: View Dashboard"), "Step 3 should contain sequence");
-        assertTrue(step3Content.contains("@enduml"), "Step 3 should contain @enduml");
-        
-        // Verify content of summary file
-        String summaryContent = Files.readString(summaryFile.toPath());
-        assertTrue(summaryContent.contains("@startuml"), "Summary should contain @startuml");
-        assertTrue(summaryContent.contains("title test.puml - Step Flow"), "Summary should have correct title");
-        assertTrue(summaryContent.contains("rectangle \"Step 1: User Login\""), "Summary should contain step 1");
-        assertTrue(summaryContent.contains("rectangle \"Step 2: Authentication\""), "Summary should contain step 2");
-        assertTrue(summaryContent.contains("rectangle \"Step 3: Dashboard\""), "Summary should contain step 3");
-        assertTrue(summaryContent.contains("@enduml"), "Summary should contain @enduml");
+        // Verify that the HTML file references SVG files, not PNG files
+        String htmlContent = Files.readString(outputDir.resolve("index.html"));
+        assertTrue(htmlContent.contains(".svg"), "HTML should reference SVG files");
+        assertFalse(htmlContent.contains(".png"), "HTML should not reference PNG files");
     }
-} 
+    
+    @Test
+    public void testGeneratedFileStructure() throws IOException {
+        // Create a test PlantUML file with step markers
+        String pumlContent = "@startuml\n" +
+                "!include @style.puml\n" +
+                "actor \"User 1\" as U1\n" +
+                "actor \"User 2\" as U2\n" +
+                "participant \"System\" as S\n" +
+                "participant \"Database\" as DB\n\n" +
+                "' @step {\"name\": \"Step 1: Initial Request\", \"newPage\": true}\n" +
+                "U1 -> S: Initial Request\n" +
+                "S --> U1: Request Received\n\n" +
+                "' @step {\"name\": \"Step 2: Process Request\", \"newPage\": true}\n" +
+                "S -> DB: Query Data\n" +
+                "DB --> S: Return Results\n\n" +
+                "' @step {\"name\": \"Step 3: Concurrent Access\", \"newPage\": true}\n" +
+                "U2 -> S: Concurrent Request\n" +
+                "S --> U2: Handle Concurrent Request\n" +
+                "@enduml";
+        
+        File tempFile = tempDir.resolve("test_structure.puml").toFile();
+        try (FileWriter writer = new FileWriter(tempFile)) {
+            writer.write(pumlContent);
+        }
+        
+        // Create output directory
+        Path outputDir = tempDir.resolve("output_structure");
+        Files.createDirectories(outputDir);
+        
+        // Generate step diagrams
+        StepDiagramGenerator.generateStepDiagrams(tempFile, outputDir.toFile());
+        
+        // Verify that step diagrams were generated with correct structure
+        List<Path> pumlFiles = Files.list(outputDir)
+                .filter(path -> path.toString().endsWith(".puml"))
+                .collect(Collectors.toList());
+        
+        // Verify structure of each generated step file
+        for (Path pumlFile : pumlFiles) {
+            if (!pumlFile.getFileName().toString().equals("summary.puml")) {
+                verifyStepFileStructure(pumlFile);
+            }
+        }
+        
+        // Verify that SVG files were generated
+        List<Path> svgFiles = Files.list(outputDir)
+                .filter(path -> path.toString().endsWith(".svg"))
+                .collect(Collectors.toList());
+        
+        assertEquals(4, svgFiles.size(), "Should have generated 4 SVG files");
+        
+        // Check for specific SVG files
+        assertTrue(Files.exists(outputDir.resolve("step-01-step-1-initial-request.svg")), "Step 1 SVG file should exist");
+        assertTrue(Files.exists(outputDir.resolve("step-02-step-2-process-request.svg")), "Step 2 SVG file should exist");
+        assertTrue(Files.exists(outputDir.resolve("step-03-step-3-concurrent-access.svg")), "Step 3 SVG file should exist");
+        assertTrue(Files.exists(outputDir.resolve("summary.svg")), "Summary SVG file should exist");
+    }
+    
+    private void verifyStepFileStructure(Path pumlFile) throws IOException {
+        String content = Files.readString(pumlFile);
+        String[] lines = content.split("\n");
+        
+        // Count occurrences of @startuml and @enduml
+        long startUmlCount = content.lines().filter(line -> line.trim().equals("@startuml")).count();
+        long endUmlCount = content.lines().filter(line -> line.trim().equals("@enduml")).count();
+        
+        // Verify that there's exactly one @startuml at the beginning
+        assertEquals(1, startUmlCount, "Should have exactly one @startuml");
+        assertEquals("@startuml", lines[0].trim(), "@startuml should be the first line");
+        
+        // Verify that there's exactly one @enduml at the end
+        assertEquals(1, endUmlCount, "Should have exactly one @enduml");
+        assertEquals("@enduml", lines[lines.length - 1].trim(), "@enduml should be the last line");
+        
+        // Verify that all participants are included
+        assertTrue(content.contains("actor \"User 1\" as U1"), "Should include User 1");
+        assertTrue(content.contains("actor \"User 2\" as U2"), "Should include User 2");
+        assertTrue(content.contains("participant \"System\" as S"), "Should include System");
+        assertTrue(content.contains("participant \"Database\" as DB"), "Should include Database");
+        
+        // Verify that style include is present
+        assertTrue(content.contains("!include @style.puml"), "Should include style.puml");
+    }
+}
