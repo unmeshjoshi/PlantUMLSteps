@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,16 +17,13 @@ import java.util.regex.Pattern;
  * Parser for PlantUML files that extracts steps defined with step markers.
  * Step markers are comments in the format: ' @step {"name": "...", "newPage": true/false, ...}
  */
+//<codeFragment name="step-parser-refactored-step2">
 class StepParser {
-    // Pattern to match step markers: ' @step {"name": "...", ...}
-    private static final Pattern STEP_MARKER = Pattern.compile("'\\s*@step\\s+(\\{.*\\})");
+    private final StepMarkerDetector stepMarkerDetector = new StepMarkerDetector();
+    private final DeclarationDetector declarationDetector = new DeclarationDetector();
+    private final StepMetadataExtractor metadataExtractor = new StepMetadataExtractor();
 
-    // Declaration patterns
-    private static final Pattern PARTICIPANT_DECLARATION = Pattern.compile("(?i)^\\s*participant\\s+.*");
-    private static final Pattern ACTOR_DECLARATION = Pattern.compile("(?i)^\\s*actor\\s+.*");
-    private static final Pattern INCLUDE_DECLARATION = Pattern.compile("(?i)^\\s*!include\\s+.*");
-
-    private final Gson gson = new Gson();
+    //</codeFragment>
 
     /**
      * Parses a PlantUML file and extracts steps.
@@ -54,10 +52,10 @@ class StepParser {
         String line;
 
         while ((line = reader.readLine()) != null) {
-            if (isStepMarker(line)) {
-                StepMetadata metadata = extractStepMetadata(line);
+            if (stepMarkerDetector.isStepMarker(line)) {
+                StepMetadata metadata = metadataExtractor.extractFrom(line);
                 document.beginNewStep(metadata);
-            } else if (isDeclaration(line)) {
+            } else if (declarationDetector.isDeclaration(line)) {
                 document.addDeclaration(line);
             } else {
                 document.addContentLine(line);
@@ -77,7 +75,7 @@ class StepParser {
         defaultStep.addAllDeclarations(document.getDeclarations());
 
         for (String contentLine : document.getContentBeforeFirstStep()) {
-            if (isDeclaration(contentLine)) {
+            if (declarationDetector.isDeclaration(contentLine)) {
                 defaultStep.addDeclaration(contentLine);
             } else {
                 defaultStep.addContent(contentLine);
@@ -86,67 +84,114 @@ class StepParser {
 
         return List.of(defaultStep);
     }
+}
+
+/**
+ * Detects step markers in PlantUML content
+ */
+class StepMarkerDetector {
+    private static final Pattern STEP_MARKER = Pattern.compile("'\\s*@step\\s+(\\{.*\\})");
 
     /**
      * Checks if a line contains a step marker
      */
-    private boolean isStepMarker(String line) {
+    public boolean isStepMarker(String line) {
         return STEP_MARKER.matcher(line).find();
     }
 
     /**
-     * Extracts metadata from a step marker line
+     * Extracts the JSON string from a step marker line
      */
-    private StepMetadata extractStepMetadata(String line) {
+    public String extractJsonString(String line) {
         Matcher matcher = STEP_MARKER.matcher(line);
         if (matcher.find()) {
-            String jsonStr = matcher.group(1);
-            Map<String, Object> attributes = parseStepAttributes(jsonStr);
-
-            String name = extractAttributeAsString(attributes, "name", "Unnamed Step");
-            boolean newPage = extractAttributeAsBoolean(attributes, "newPage", false);
-
-            return new StepMetadata(name, newPage, attributes);
+            return matcher.group(1);
         }
         throw new IllegalArgumentException("Not a valid step marker: " + line);
     }
+}
+
+/**
+ * Extracts and parses metadata from step markers
+ */
+class StepMetadataExtractor {
+    private final StepMarkerDetector stepMarkerDetector = new StepMarkerDetector();
+    private final JsonParser jsonParser = new JsonParser();
 
     /**
-     * Parses the JSON attributes from a step marker.
+     * Extracts metadata from a step marker line
      */
-    private Map<String, Object> parseStepAttributes(String jsonStr) {
+    public StepMetadata extractFrom(String line) {
+        String jsonStr = stepMarkerDetector.extractJsonString(line);
+        Map<String, Object> attributes = jsonParser.parse(jsonStr);
+
+        String name = getStringAttribute(attributes, "name", "Unnamed Step");
+        boolean newPage = getBooleanAttribute(attributes, "newPage", false);
+
+        return new StepMetadata(name, newPage, attributes);
+    }
+
+    private String getStringAttribute(Map<String, Object> attributes, String key, String defaultValue) {
+        return attributes.containsKey(key) ? attributes.get(key).toString() : defaultValue;
+    }
+
+    private boolean getBooleanAttribute(Map<String, Object> attributes, String key, boolean defaultValue) {
+        return attributes.containsKey(key) ? Boolean.parseBoolean(attributes.get(key).toString()) : defaultValue;
+    }
+}
+
+/**
+ * Parses JSON strings into maps
+ */
+class JsonParser {
+    private final Gson gson = new Gson();
+
+    /**
+     * Parses a JSON string into a map
+     */
+    public Map<String, Object> parse(String jsonStr) {
         try {
             Map<String, Object> map = gson.fromJson(jsonStr, Map.class);
             return map != null ? map : new HashMap<>();
         } catch (JsonParseException e) {
-            System.err.println("Error parsing step metadata: " + e.getMessage());
+            System.err.println("Error parsing JSON: " + e.getMessage());
             return new HashMap<>();
         }
     }
+}
+
+/**
+ * Detects declarations in PlantUML content
+ */
+class DeclarationDetector {
+    private static final Pattern PARTICIPANT_DECLARATION = Pattern.compile("(?i)^\\s*participant\\s+.*");
+    private static final Pattern ACTOR_DECLARATION = Pattern.compile("(?i)^\\s*actor\\s+.*");
+    private static final Pattern INCLUDE_DECLARATION = Pattern.compile("(?i)^\\s*!include\\s+.*");
 
     /**
-     * Extract a string attribute with default value
+     * Checks if a line is a declaration (participant, actor, or include)
      */
-    private String extractAttributeAsString(Map<String, Object> attributes, String key, String defaultValue) {
-        return attributes.containsKey(key) ? attributes.get(key).toString() : defaultValue;
-    }
-
-    /**
-     * Extract a boolean attribute with default value
-     */
-    private boolean extractAttributeAsBoolean(Map<String, Object> attributes, String key, boolean defaultValue) {
-        return attributes.containsKey(key) ? Boolean.parseBoolean(attributes.get(key).toString()) : defaultValue;
-    }
-
-    /**
-     * Checks if a line is a declaration (participant, actor, or include).
-     */
-    private boolean isDeclaration(String line) {
+    public boolean isDeclaration(String line) {
         return PARTICIPANT_DECLARATION.matcher(line).matches() ||
                 ACTOR_DECLARATION.matcher(line).matches() ||
                 INCLUDE_DECLARATION.matcher(line).matches();
     }
 
-    //<codeFragment name="step-parser-refactored">
+    /**
+     * Gets the type of declaration
+     */
+    public DeclarationType getDeclarationType(String line) {
+        if (PARTICIPANT_DECLARATION.matcher(line).matches()) {
+            return DeclarationType.PARTICIPANT;
+        } else if (ACTOR_DECLARATION.matcher(line).matches()) {
+            return DeclarationType.ACTOR;
+        } else if (INCLUDE_DECLARATION.matcher(line).matches()) {
+            return DeclarationType.INCLUDE;
+        }
+        return DeclarationType.UNKNOWN;
+    }
 
+    public enum DeclarationType {
+        PARTICIPANT, ACTOR, INCLUDE, UNKNOWN
+    }
 }
