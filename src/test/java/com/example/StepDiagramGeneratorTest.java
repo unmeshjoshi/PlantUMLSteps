@@ -21,9 +21,9 @@ public class StepDiagramGeneratorTest {
     public void testGenerateStepDiagrams() throws IOException {
         // Create a test PlantUML file with step markers
         String pumlContent = "@startuml\n" +
+                "' @step {\"name\": \"Step 1: User Login\", \"newPage\": false}\n" +
                 "actor User\n" +
                 "participant System\n\n" +
-                "' @step {\"name\": \"Step 1: User Login\", \"newPage\": false}\n" +
                 "User -> System: Login Request\n" +
                 "System --> User: Login Form\n\n" +
                 "' @step {\"name\": \"Step 2: Authentication\", \"newPage\": false}\n" +

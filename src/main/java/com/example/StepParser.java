@@ -6,7 +6,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,17 +48,16 @@ public class StepParser {
      * Processes a file that has step markers.
      */
     private List<Step> processFileWithStepMarkers(File file) throws IOException {
-        ParsedPumlFile parsedPumlFile = new ParsedPumlFile();
+        StepBuilder builder = new StepBuilder();
 
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                processLine(line, parsedPumlFile);
+                processLine(line, builder);
             }
         }
 
-        parsedPumlFile.finalizeProcessing();
-        return parsedPumlFile.getSteps();
+        return builder.build();
     }
 
     /**
@@ -74,34 +72,34 @@ public class StepParser {
      * Creates a default step from a file without step markers.
      */
     private Step createDefaultStep(File file) throws IOException {
-        ParsedPumlFile parsedPumlFile = new ParsedPumlFile();
+        StepMetadata metadata = new StepMetadata("Default Step", false, new HashMap<>());
+        Step step = new Step(metadata);
 
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (declarationDetector.isDeclaration(line)) {
-                    parsedPumlFile.addDeclaration(line);
+                    step.addDeclaration(line);
                 } else if (!line.trim().isEmpty()) {
-                    parsedPumlFile.addContentLine(line);
+                    step.addContent(line);
                 }
             }
         }
 
-        parsedPumlFile.createDefaultStep();
-        return parsedPumlFile.getSteps().get(0);
+        return step;
     }
 
     /**
      * Processes a single line from the file.
      */
-    private void processLine(String line, ParsedPumlFile builder) {
+    private void processLine(String line, StepBuilder builder) {
         if (stepMarkerDetector.isStepMarker(line)) {
             StepMetadata metadata = metadataExtractor.extractMetadata(line);
-            builder.beginNewStep(metadata);
+            builder.startNewStep(metadata);
         } else if (declarationDetector.isDeclaration(line)) {
             builder.addDeclaration(line);
         } else if (!line.trim().isEmpty()) {
-            builder.addContentLine(line);
+            builder.addContent(line);
         }
     }
 }
